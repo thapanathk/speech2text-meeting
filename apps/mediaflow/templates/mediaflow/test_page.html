@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>🎧 Audio → WAV Converter</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f4f4f8;
+        margin: 2em auto;
+        max-width: 700px;
+        padding: 1.5em;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 1em;
+      }
+      input,
+      select,
+      button {
+        padding: 0.6em;
+        font-size: 1em;
+      }
+      button {
+        background-color: #0066cc;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      pre {
+        background: #222;
+        color: #0f0;
+        padding: 1em;
+        border-radius: 5px;
+        font-size: 0.9em;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎧 Audio → WAV Converter</h1>
+    <form id="convertForm" enctype="multipart/form-data">
+      <label>Select audio file:</label>
+      <input type="file" name="file" accept=".mp3,.m4a,.wav,.flac" required />
+
+      <label>Noise reduction profile:</label>
+      <select name="profile">
+        <option value="fast">Fast (default)</option>
+        <option value="max">Max (strong noise reduction)</option>
+      </select>
+
+      <button type="submit">Convert to WAV</button>
+    </form>
+
+    <h3>Response:</h3>
+    <pre id="output">waiting...</pre>
+
+    <script>
+      document.getElementById('convertForm').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const form = e.target
+        const data = new FormData(form)
+        const output = document.getElementById('output')
+        output.textContent = 'Uploading...'
+        try {
+          const res = await fetch('/tools/convert', { method: 'POST', body: data })
+          const text = await res.text()
+          output.textContent = text
+        } catch (err) {
+          output.textContent = 'Error: ' + err.message
+        }
+      })
+    </script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+asrpro/
+├─ manage.py
+├─ asrpro/                
+│  ├─ __init__.py
+│  ├─ settings.py         
+│  ├─ urls.py
+│  ├─ asgi.py              
+│  └─ wsgi.py
+├─ apps/
+│  ├─ __init__.py
+│  └─ mediaflow/           
+│     ├─ __init__.py
+│     ├─ apps.py
+│     ├─ urls.py
+│     ├─ views.py          
+│     ├─ forms.py         
+│     └─ utils/
+│     │  ├─ io.py
+│     │  ├─ diarize.py
+│     │  ├─ hf_auth.py
+│     │  ├─ transcribe.py
+│     │  └─ ffmpeg_convert.py
+│     ├─ templates/
+│     │  └─ mediaflow/
+│     │     └─ index.html
+│     └─ static/
+│        └─ mediaflow/
+│           └─ css/
+│              └─ style.css
+│           └─ js/
+│              └─ speech2text.js
+├─ data/
+│  ├─ cojnverted/
+│  │  └─ *.wav
+│  ├─ uploads/
+│  │  └─ (audio files)            
+│  └─ results/
+│     ├─ diar
+│     │  └─ *diar.json
+│     └─ transcribe
+│        └─ *transcribe.json
+├─ .env                  
+└─ requirements.txt

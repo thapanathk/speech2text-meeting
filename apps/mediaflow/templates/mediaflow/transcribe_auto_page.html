@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🎙️ Convert(MAX) → Diarize → Pathumma Transcribe</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f6f8fb; margin:2rem auto; max-width:880px; padding:1.5rem; }
+    h1 { text-align:center; color:#222; }
+    form { display:grid; grid-template-columns: 2fr 1fr; gap:1rem; align-items:end; }
+    label { display:flex; flex-direction:column; gap:.4rem; font-weight:600; }
+    input, select, button { padding:.6rem; font-size:1rem; }
+    button { grid-column:1 / -1; background:#0a66c2; color:#fff; border:0; border-radius:6px; cursor:pointer; }
+    pre { background:#111; color:#b8ffb3; padding:1rem; border-radius:6px; overflow-x:auto; }
+    table { width:100%; border-collapse: collapse; margin-top:1rem; }
+    th, td { border:1px solid #ddd; padding:.5rem; font-size: .95rem; }
+    th { background:#f0f2f6; text-align:left; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Convert(MAX) → Diarize → Pathumma Transcribe</h1>
+
+  <form id="f" enctype="multipart/form-data">
+    <label>Audio file (mp3/m4a/wav/…)
+      <input type="file" name="file" accept=".mp3,.m4a,.wav,.flac,.ogg,.aac" required />
+    </label>
+
+    <label>Language (optional)
+      <select name="language">
+        <option value="th" selected>Thai (th)</option>
+        <option value="">Auto</option>
+      </select>
+    </label>
+
+    <button type="submit">Run</button>
+  </form>
+
+  <h3>JSON Response</h3>
+  <pre id="out">waiting...</pre>
+
+  <h3>Table View</h3>
+  <table id="tbl"><thead><tr>
+    <th>#</th><th>Speaker</th><th>Start</th><th>End</th><th>Text</th>
+  </tr></thead><tbody></tbody></table>
+
+  <script>
+    const form = document.getElementById('f');
+    const out  = document.getElementById('out');
+    const tbody = document.querySelector('#tbl tbody');
+
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault(); out.textContent = 'Uploading & processing...'; tbody.innerHTML='';
+      const data = new FormData(form);
+      try {
+        const res = await fetch('/tools/transcribe_auto', { method: 'POST', body: data });
+        const txt = await res.text();
+        out.textContent = txt;
+        let js; try { js = JSON.parse(txt); } catch { return; }
+        if(js.ok && Array.isArray(js.segments)){
+          js.segments.forEach((s, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="mono">${i+1}</td>
+                            <td class="mono">${s.speaker || '-'}</td>
+                            <td class="mono">${(s.start??0).toFixed(2)}</td>
+                            <td class="mono">${(s.end??0).toFixed(2)}</td>
+                            <td>${(s.text||'').replace(/</g,'&lt;')}</td>`;
+            tbody.appendChild(tr);
+          });
+        }
+      } catch (e) { out.textContent = 'Error: ' + e.message; }
+    });
+  </script>
+</body>
+</html>
