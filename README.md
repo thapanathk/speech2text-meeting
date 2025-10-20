@@ -31,7 +31,7 @@ source .venv/bin/activate
 .\.venv\Scripts\Activate.ps1
 
 # อัปเกรด pip + ติดตั้ง dependencies
-pip install --upgrade pip
+python.exe -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 > ถ้ามี GPU ให้ติดตั้ง PyTorch ตามคู่มือก่อน แล้วค่อย `pip install -r requirements.txt`
