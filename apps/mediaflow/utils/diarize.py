@@ -1,4 +1,7 @@
 import os
+import asrpro.compat  # noqa: F401
+import torch
+import soundfile as sf
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Dict
@@ -17,7 +20,9 @@ def _to_cuda_if_available(pipe):
     try:
         import torch
         if torch.cuda.is_available():
-            pipe.to("cuda")
+            major, minor = torch.cuda.get_device_capability(0)
+            if f"sm_{major}{minor}" in set(torch.cuda.get_arch_list()):
+                pipe.to("cuda")
     except Exception:
         pass
     return pipe
@@ -29,23 +34,42 @@ def _get_pipeline():
     if not token and not ok:
         raise RuntimeError("Missing HUGGINGFACE_HUB_TOKEN in .env (required for pyannote).")
     from pyannote.audio import Pipeline
-    pipe = Pipeline.from_pretrained(MODEL_ID, use_auth_token=token)
+    try:
+        pipe = Pipeline.from_pretrained(MODEL_ID, use_auth_token=token)
+    except Exception as e:
+        # Handle YAML deserialization errors by retrying with alternative options
+        error_msg = str(e)
+        if "Could not import module" in error_msg or "pipeline" in error_msg.lower():
+            # Try loading without auth token as fallback
+            try:
+                pipe = Pipeline.from_pretrained(MODEL_ID, use_auth_token=None)
+            except Exception as retry_error:
+                raise RuntimeError(f"Failed to load pyannote pipeline '{MODEL_ID}': {error_msg}. "
+                                   f"Retry also failed: {retry_error}")
+        else:
+            raise
     if pipe is None: raise RuntimeError(f"Pipeline.load returned None for '{MODEL_ID}'.")
     return _to_cuda_if_available(pipe)
 
-def diarize_auto(audio_path: str | Path, *, save: bool = True) -> Dict:
+def diarize_auto(audio_path: str | Path, *, profile: str = "mid", save: bool = True) -> Dict:
     audio_path = Path(audio_path).resolve()
 
-    conv = _run_async(convert_to_wav(audio_path, profile="mid"))
+    conv = _run_async(convert_to_wav(audio_path, profile=profile))
     if not conv.get("ok"):
         raise RuntimeError(f"ffmpeg failed: {conv.get('stderr','')}")
     wav_path = Path(conv["output"]).resolve()
 
     pipe = _get_pipeline()
+    waveform, sample_rate = sf.read(str(wav_path), dtype="float32", always_2d=True)
+    file_input = {
+        "waveform": torch.from_numpy(waveform.T),
+        "sample_rate": sample_rate,
+        "uri": wav_path.stem,
+    }
     try:
-        diar = pipe(str(wav_path), batch_size=1)
+        diar = pipe(file_input, batch_size=1)
     except TypeError:
-        diar = pipe(str(wav_path))
+        diar = pipe(file_input)
 
     segments, speakers = [], set()
     for turn, _, spk in diar.itertracks(yield_label=True):
@@ -61,7 +85,7 @@ def diarize_auto(audio_path: str | Path, *, save: bool = True) -> Dict:
         "wav": str(wav_path),
         "segments": segments,
         "speakers_count": len({s["speaker"] for s in segments}),
-        "profile": "mid",
+        "profile": profile,
         "model": MODEL_ID,
         "source": str(audio_path),
     }

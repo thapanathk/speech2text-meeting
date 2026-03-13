@@ -8,7 +8,8 @@ from .utils.io import save_json
 
 from .utils.ffmpeg_convert import convert_to_wav
 from .utils.diarize import diarize_auto
-from .utils.transcribe import transcribe_segments_with_pathumma
+# Import transcribe lazily to avoid loading transformers at startup
+# from .utils.transcribe import transcribe_segments_with_pathumma
 
 def index(request):
     return render(request, "mediaflow/index.html")
@@ -97,11 +98,32 @@ def transcribe_auto_api(request: HttpRequest):
             dst.write(ch)
 
     try:
+        # Import transcribe lazily to avoid loading transformers at startup
+        from .utils.transcribe import transcribe_segments_with_pathumma
+        
         # 1) diarize (จะสร้าง .json ใน results/diar ให้อัตโนมัติ)
-        dia = diarize_auto(src, save=True)
+        try:
+            dia = diarize_auto(src, save=True)
+        except Exception as dia_err:
+            import traceback
+            tb = traceback.format_exc()
+            return JsonResponse({
+                "ok": False,
+                "error": f"Diarization failed: {str(dia_err)}",
+                "trace": tb[:3000]
+            }, status=500)
 
         # 2) transcribe ตามช่วง
-        enriched = transcribe_segments_with_pathumma(dia["wav"], dia["segments"], language=language)
+        try:
+            enriched = transcribe_segments_with_pathumma(dia["wav"], dia["segments"], language=language)
+        except Exception as trans_err:
+            import traceback
+            tb = traceback.format_exc()
+            return JsonResponse({
+                "ok": False,
+                "error": f"Transcription failed: {str(trans_err)}",
+                "trace": tb[:3000]
+            }, status=500)
 
         # 3) รวมผล + เซฟเป็น JSON ใน results/transcribe/
         result = {

@@ -25,3 +25,7 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+
+# Temp / junk
+asrpro/compat_old.py
+nul

@@ -1,6 +1,7 @@
 import os
 import io
 import re
+import asrpro.compat  # noqa: F401
 import torch
 import soundfile as sf
 from pathlib import Path
@@ -8,8 +9,20 @@ from typing import List, Dict, Optional, Any
 from subprocess import Popen, PIPE
 from transformers import pipeline
 
+
+def _cuda_is_usable() -> bool:
+    if not torch.cuda.is_available():
+        return False
+    try:
+        major, minor = torch.cuda.get_device_capability(0)
+        supported_arches = set(torch.cuda.get_arch_list())
+        return f"sm_{major}{minor}" in supported_arches
+    except Exception:
+        return False
+
+
 # ---- Device & dtype ---------------------------------------------------------
-HAS_CUDA = torch.cuda.is_available()
+HAS_CUDA = _cuda_is_usable()
 DEVICE = 0 if HAS_CUDA else -1            # transformers: 0 = CUDA:0, -1 = CPU
 DTYPE = torch.float16 if HAS_CUDA else torch.float32
 
@@ -34,11 +47,13 @@ def _load_pipeline():
     model_id = _require_model_id()
     token = os.getenv("HUGGINGFACE_HUB_TOKEN")
 
+    if torch.cuda.is_available() and not HAS_CUDA:
+        print("[INFO] CUDA is available but unsupported by the installed PyTorch build; falling back to CPU.")
     print(f"[INFO] Loading ASR pipeline: {model_id} (device={'cuda' if HAS_CUDA else 'cpu'}, dtype={DTYPE})")
     asr = pipeline(
         task="automatic-speech-recognition",
         model=model_id,
-        torch_dtype=DTYPE,
+        dtype=DTYPE,
         device=DEVICE,
         token=token,  # ถ้า transformers เก่า: ใช้ use_auth_token=token
     )

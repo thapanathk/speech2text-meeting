@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """Django's command-line utility for administrative tasks."""
 import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import asrpro.compat  # noqa: F401 – must be first
 from pathlib import Path
 from dotenv import load_dotenv
 
